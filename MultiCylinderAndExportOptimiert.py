@@ -80,18 +80,17 @@ class CylinderROIPanel:
         segmentationNode.SetAttribute("referenceImageGeometryRef", geometryString)
 
         allNodes = slicer.util.getNodesByClass("vtkMRMLMarkupsFiducialNode")
-        for punktNode in allNodes:
-            if punktNode.GetNumberOfControlPoints() != 1:
+        for pointNode in allNodes:
+            if pointNode.GetNumberOfControlPoints() != 1:
                 continue
 
             coords = [0.0, 0.0, 0.0]
             pointNode.GetNthControlPointPosition(0, coords)
-            pointName = punktNode.GetName()
+            pointName = pointNode.GetName()
             segmentName = f"Cylinder_{pointName}"
 
             radius = diameter / 2.0
 
-            # Anzahl Voxel berechnen
             extentX = int(radius / spacing[0])
             extentY = int(radius / spacing[1])
             extentZ = int(height / 2.0 / spacing[2])
@@ -117,8 +116,21 @@ class CylinderROIPanel:
             labelmapNode.SetName(segmentName)
             labelmapNode.SetSpacing(spacing)
             labelmapNode.SetOrigin(imageData.GetOrigin())
+            
+            segment = slicer.vtkSegment()
+            segment.SetName(segmentName)
+            segment.SetLabelValue(1)
+            segment.SetColor(1.0, 1.0, 0.0)
 
+            segmentationNode.GetSegmentation().AddSegment(segment)
+            
+            beforeCount = segmentationNode.GetSegmentation().GetNumberOfSegments()
             slicer.vtkSlicerSegmentationsModuleLogic().ImportLabelmapToSegmentationNode(labelmapNode, segmentationNode)
+            afterCount = segmentationNode.GetSegmentation().GetNumberOfSegments()
+            
+            if afterCount > beforeCount:
+                newSegmentID = segmentationNode.GetSegmentation().GetNthSegmentID(afterCount - 1)
+                segmentationNode.GetSegmentation().GetSegment(newSegmentID).SetName(segmentName)
 
             slicer.mrmlScene.RemoveNode(labelmapNode)
 
@@ -168,7 +180,7 @@ class CylinderROIPanel:
 
             with open(exportPath, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(rows))
-
+            
             slicer.mrmlScene.RemoveNode(labelNode)
 
     def onlyCylinders(self):
